@@ -2,6 +2,7 @@
 
 import os
 
+#insert your directories here
 source_dir = "input_dir"
 dest_dir = "output_dir"
 

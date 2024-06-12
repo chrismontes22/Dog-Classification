@@ -1,5 +1,5 @@
 """This script combines multiple text files into a single output file. Combines all the text from a single folder"""
-
+#Just fill in the directory variables and run
 
 import os
 
@@ -14,10 +14,10 @@ def combine_text_files_in_directory(input_directory, output_file):
                   # add a newline between files
 
 # Input directory
-input_directory = input_directory
+input_directory = 'input_directory'
 
 # Output file
-output_file = "LabledDOG.txt"
+output_file = "output_file"
 
 # Call the function to combine the text files in the directory
 combine_text_files_in_directory(input_directory, output_file)

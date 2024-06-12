@@ -1,5 +1,5 @@
-#This code specifically removes headers from wikipedis,
-#Basically it erases any line that begins with '=='
+#This code specifically removes headers from wikipedia, where they have a bunch of equal signs
+#Basically it erases the entirety any line that begins with '=='
 import os
 
 # Define the path to the input and output directories

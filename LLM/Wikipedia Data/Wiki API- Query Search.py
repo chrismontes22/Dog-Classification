@@ -6,8 +6,8 @@ This code prints out a list of the classes that didnt work in order to make adju
 
 import wikipedia
 
-# List of dog breeds
-# List of dog breeds
+
+# Insert dog breeds here as a list and run code. It will seearch wikipedia as a query and download
 dog_breeds = ['Afghan Hound', 'African Wild Dog', 'Airedale Dog', 'American Hairless Dog', 'American Spaniel Dog', 'Basenji Dog', 'Basset Dog', 'Beagle Dog', 'Bearded Collie Dog', 'Bermaise Dog', 'Bichon Frise Dog', 'Blenheim Dog', 'Bloodhound Dog', 'Bluetick Dog', 'Border Collie Dog', 'Borzoi Dog', 'Boston Terrier Dog', 'Boxer Dog', 'Bull Mastiff Dog', 'Bull Terrier Dog', 'Bulldog Dog', 'Cairn Dog', 'Chihuahua Dog', 'Chinese Crested Dog', 'Chow Dog', 'Clumber Dog', 'Cockapoo Dog', 'Cocker Dog', 'Collie Dog', 'Corgi Dog', 'Coyote Dog', 'Dalmation Dog', 'Dingo Dog', 'Doberman Dog', 'Elk Hound Dog', 'French Bulldog', 'German Sheperd Dog', 'Golden Retriever Dog', 'Great Dane Dog', 'Great Perenees Dog', 'Greyhound Dog', 'Groenendael Dog', 'Irish Spaniel Dog', 'Irish Wolfhound Dog', 'Japanese Spaniel Dog', 'Komondor Dog', 'Labradoodle Dog', 'Labrador Dog', 'Lhasa Dog', 'Malinois Dog', 'Maltese Dog', 'Mex Hairless Dog', 'Newfoundland Dog', 'Pekinese Dog', 'Pit Bull Dog', 'Pomeranian Dog', 'Poodle Dog', 'Pug Dog', 'Rhodesian Dog', 'Rottweiler Dog', 'Saint Bernard Dog', 'Samoyed Dog', 'Schnauzer Dog', 'Scotch Terrier Dog', 'Shar Pei Dog', 'Shiba Inu Dog', 'Shih Tzu Dog', 'Siberian Husky Dog', 'Vizsla Dog', 'Yorkie Dog']
 
 

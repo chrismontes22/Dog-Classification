@@ -1,6 +1,7 @@
 """When the data was split into lines, some of the lines simply had a name or only partial sentences.
 This erases any line under the linelen value"""
 
+#Within a folder full of text files, modify this variable to choose how long the shortest line whould be
 linelen = 150
 
 def filter_lines(txt_path, new_txt_path):

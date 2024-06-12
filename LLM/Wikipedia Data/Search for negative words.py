@@ -1,8 +1,11 @@
-"""This script searches for commonly used negative terms in all of the text files within a folder"""
+"""This script searches for commonly used negative terms in all of the text files within a folder. You can use it for any word, not just negative ones"""
+#Just insert the words you want to search in the words variable as a list
 
 import os
 import glob
 import re
+
+words = ['Cancer','cancer','death','Dead','Murder, murder', 'blood', "blood", 'bleed', 'Bleed']
 
 def search_words_in_files(directory, words):
     # Get a list of all txt files in the specified directory
@@ -15,6 +18,6 @@ def search_words_in_files(directory, words):
                 if re.search(r'\b' + word + r'\b', contents):
                     print(f"Word '{word}' found in {file}")
 
-# Usage
-search_words_in_files(r'Newdog2', ['Cancer','cancer','death','Dead','Murder, murder', 'blood', "blood", 'bleed', 'Bleed'])
+# Usage: insert the words you want to search as a list when calling the function
+search_words_in_files(r'your_folder_path', words)
 

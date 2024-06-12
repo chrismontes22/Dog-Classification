@@ -1,6 +1,7 @@
 """The script requires you to create your own google account, then go https://developers.google.com/custom-search/v1/overview to create your own custom image search.
 once the image search is ccreated you will receive a cse_id and you will be able to create an API key. If you want to hide the ID and key you will also require
 a seperate config file, such as in the script below"""
+#Once youve gotten a cse_id and an API key and the config file, just fill the  parameters. It will create a new folder with the wuery as the name
 
 import os
 import requests
@@ -15,11 +16,12 @@ logging.basicConfig(filename='Image Changes.txt', level=logging.INFO, format='%(
 
 #Parameters
 search_query = 'puppy' #Google Search query
-folder_path = search_query.replace(' ', '-')
-first_image = 11 #Google search api requres you set a range of images. The max difference between the two is 100 images
-last_image = 1100 #Google allows max of 100 per run, It will fininsh the last page (set of 10 images)
+first_image = 1 #Google search api requres you set a range of images. The max difference between the two is 100 images
+last_image = 100 #Google allows max of 100 per run, It will fininsh the last page (set of 10 images)
                   #Start where you left off last run. The code loggeed this number in a text file in the main workfolder
                   
+
+folder_path = search_query.replace(' ', '-')
 
 # Log the dog breeds and the current time
 logging.info('Image Download from Google')

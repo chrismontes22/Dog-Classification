@@ -3,6 +3,9 @@ train val split folders in the main image folder. Next it moves the appropriate 
 Finally it zips the entire image dataset"""
 """Please note that the dog_breeds here are filepaths, so if the folders are saved in a different path you must change it in the
 dog_breeds list accordingly"""
+#Just fill in the list of breeds with the breeds that you ran for the Image download pipeline
+#I have my data structured where I have the main folder then a test, a train, and a valid folder. Then each folder has a bunch of folders, one for each class
+
 
 import os
 import shutil

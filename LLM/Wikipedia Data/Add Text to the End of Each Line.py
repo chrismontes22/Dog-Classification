@@ -3,8 +3,8 @@
 import os
 
 # Define the path to the input and output directories
-input_dir = input_dir
-output_dir = output_dir
+input_dir = 'input_dir'
+output_dir = 'output_dir'
 
 # Create the output directory if it doesn't exist
 os.makedirs(output_dir, exist_ok=True)

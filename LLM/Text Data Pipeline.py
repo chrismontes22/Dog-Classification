@@ -1,4 +1,5 @@
-###Here is the code for  downloading, cleaning, transforming to JSON, and uploading the data###
+"""Here is the code for  downloading, cleaning, formatting/transforming to JSON, and uploading the data. Options to use Mask/Unmask (DistillBERT)
+and back translation for data augmentation."""
 import requests
 from bs4 import BeautifulSoup
 import json
@@ -14,6 +15,8 @@ dailypaws_W = {} #For the dailypaws site. Continuing from above Sometimes these 
             #In the dailypaws website, poodle was the only one saved in a different directory. need to copy the whole link directly
 final_json_name = 'DD3'
 USE_MASKING = True #Data Augmentation by masking then unmasking with the BERT Transformers. Adds about 30 seconds per class
+USE_TRANSLATION = False #Data Augmentation by translating then back translating. Recomended only on a GPU. Adds about 8 minutes per class on CPU. On a T4 GPU its about 3 minutes
+                        #I ont use for initial data upload, but for new labels added (since initial already has wikipedia). WIll be doe on COlabs with T4
 MERGE_EVERY_JSON_IN_FOLDER = True #used for single breed data downloads. Especially when the website has a messed up URL dog breed name.
 UPLOAD_TO_HF = True #Upload to huggingface
 
@@ -34,7 +37,7 @@ def dogtime_data(dog_breed):
         return
     if not USE_MASKING:
         time.sleep(5) #Slows down the script so that it doesn't make too many requests to the site at once. The number represents how many seconds to wait PER class
-            
+                      #No need to slow down if using translation
     # Parse the HTML content with BeautifulSoup.
     soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -51,7 +54,7 @@ def dogtime_data(dog_breed):
     with open(f'{dog_breed}1.txt', 'w', encoding='utf-8') as f:
         f.write(text)
 
-    # Find the length of the shortest line in the filtered data. Disabled unless necessary
+    # Find the length of the shortest line in the filtered data. Only enabled during testing
     """shortest_line_length = min(len(text) for text in texts)
 
     print(f"The shortest line in the filtered data has {shortest_line_length} characters.")"""
@@ -257,6 +260,39 @@ def mask_and_unmask(dog_breed, n=4):
     with open(f'{dog_breed}_unmasked.json', 'w') as f:
         json.dump(data, f, indent=4)
 
+
+if USE_TRANSLATION:
+    import torch
+    from transformers import T5ForConditionalGeneration, T5Tokenizer
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Load pre-trained T5 model and tokenizer
+    translate_model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-small").to(device)
+    translate_tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-small")
+
+def translate_and_backtranslate(breed):
+    # Load the JSON file
+    with open(f'{breed}.json') as f:
+        data = json.load(f)
+
+    # Translate and back-translate the text
+    for item in data:
+        if item['text'].startswith(breed + ':'):
+            text_to_translate = item['text'][len(breed) + 1:]
+            input_ids = translate_tokenizer.encode(text_to_translate, return_tensors='pt').to(device)  # Move to GPU
+            outputs = translate_model.generate(input_ids=input_ids, max_length=250, min_length=50, no_repeat_ngram_size=3, num_beams=8, early_stopping= True)
+            translated_text = translate_tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+            input_ids = translate_tokenizer.encode(translated_text, return_tensors='pt').to(device)  # Move to GPU
+            outputs = translate_model.generate(input_ids=input_ids, max_length=250, min_length=50, no_repeat_ngram_size=3, num_beams=8, early_stopping= True)
+            back_translated_text = translate_tokenizer.decode(outputs[0], skip_special_tokens=True)
+            item['text'] = breed + ': ' + back_translated_text
+
+    # Write the translated data to a new JSON file
+    with open(f'{breed}_backtranslated_data.json', 'w') as f:
+        json.dump(data, f, indent=4)
+
+
+
 failed_breeds = []  # List to keep track of breeds that caused errors
 
 for breed in dog_breed: #for loop so that it runs the code for each dog breed
@@ -280,6 +316,11 @@ for breed in dog_breed: #for loop so that it runs the code for each dog breed
             mask_and_unmask(breed)
             end_time = time.time()
             print(f"Time taken for mask_and_unmask: {end_time - start_time} seconds")
+        if USE_TRANSLATION:
+            start_time = time.time()
+            translate_and_backtranslate(breed)
+            end_time = time.time()
+            print(f"Time taken for translate_and_backtranslate: {end_time - start_time} seconds")
     except Exception as e:
         print(f"An error occurred with breed {breed}: {str(e)}") 
         failed_breeds.append(breed)  # Add the failed breed to the list
@@ -311,8 +352,9 @@ if MERGE_EVERY_JSON_IN_FOLDER:
 #Subprocess allows user to log in using python without actually using the terminal
 if UPLOAD_TO_HF:
     import subprocess
-
-    token = "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"
+    import config
+    #You will need to create your own config.py file with your own huggingface ID
+    token = config.hf
 
         # Login command using f-strings for secure variable insertion
     login_command = f"huggingface-cli login --token {token}"
@@ -323,8 +365,8 @@ if UPLOAD_TO_HF:
     from huggingface_hub import HfApi
     api = HfApi()
     api.upload_file( #can also do a whole folder
-        path_or_fileobj=f"{final_json_name}.json",
-        path_in_repo=f"{final_json_name}.json",
-        repo_id="chrismontes/DogData",
-        repo_type="dataset",
+        path_or_fileobj= f"{final_json_name}.json",
+        path_in_repo= f"{final_json_name}.json",
+        repo_id= "repo_id", #insert the dataset you want to upload in HuggingFace
+        repo_type= "dataset",
     )

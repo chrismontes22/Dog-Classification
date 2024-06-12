@@ -1,5 +1,6 @@
 """The first code did most the classes. The few that remain can be done manually through
 a url search instead of a query for more precise results"""
+#Insert the wikipedia URL in the URL variable to fetch the text data from that article
 
 import wikipedia
 

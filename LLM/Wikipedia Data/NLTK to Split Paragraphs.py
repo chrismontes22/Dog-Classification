@@ -1,6 +1,7 @@
 """This script takes a text file as input and splits long paragraphs into shorter ones based on a word count threshold of 150 words. 
 It uses the NLTK punkt tokenizer to detect sentence boundaries and recombines sentences into new paragraphs that meet the word count limit. 
 Used to make them fit into trainable data length. Iterates through all text files in a folder"""
+#I used this after combining all of the text
 
 import nltk
 import re
@@ -42,4 +43,4 @@ def split_paragraphs(file_path):
         file.write('\n'.join(new_paragraphs))
 
 # Replace 'your_file.txt' with the path to your file
-split_paragraphs('Dog text\Labrador Dog.txt')
+split_paragraphs('your_file.txt')

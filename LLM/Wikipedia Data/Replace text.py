@@ -1,5 +1,6 @@
 """Goes through all of the text files in a folder and replaces a strign of text with another text.
 I used it to replace some negative terms, but also to format into JSON"""
+#Just insert the variables folder directories of where you want to load/save, and the variables of the old and new words
 
 import os
 import shutil
