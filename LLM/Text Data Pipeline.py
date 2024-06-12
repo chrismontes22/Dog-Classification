@@ -14,8 +14,6 @@ dailypaws_W = {} #For the dailypaws site. Continuing from above Sometimes these 
             #In the dailypaws website, poodle was the only one saved in a different directory. need to copy the whole link directly
 final_json_name = 'DD3'
 USE_MASKING = True #Data Augmentation by masking then unmasking with the BERT Transformers. Adds about 30 seconds per class
-USE_TRANSLATION = False #Data Augmentation by translating then back translating. Recomended only on a GPU. Adds about 8 minutes per class on CPU. On a T4 GPU its about 3 minutes
-                        #I ont use for initial data upload, but for new labels added (since initial already has wikipedia). WIll be doe on COlabs with T4
 MERGE_EVERY_JSON_IN_FOLDER = True #used for single breed data downloads. Especially when the website has a messed up URL dog breed name.
 UPLOAD_TO_HF = True #Upload to huggingface
 
@@ -34,9 +32,9 @@ def dogtime_data(dog_breed):
     if response.status_code != 200:
         print(f'Failed to retrieve {url}. Please check the full name of the specific dog breed on the site. Status code: {response.status_code}')
         return
-   
-    time.sleep(5) #Slows down the script so that it doesn't make too many requests to the site at once. The number represents how many seconds to wait PER class
-                      #No need to slow down if using translation
+    if not USE_MASKING:
+        time.sleep(5) #Slows down the script so that it doesn't make too many requests to the site at once. The number represents how many seconds to wait PER class
+            
     # Parse the HTML content with BeautifulSoup.
     soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -216,6 +214,49 @@ def process_file(dog_breed):
     convert_txt_to_json(filename, json_path)
 
 
+# Initialize the fill-mask pipeline with distilbert
+#This goes outside the def function because we don't want it within the loop. Only need to call it once, not once per breed
+#calling it multiple times is highly inefficient
+if USE_MASKING:
+    fill_mask = pipeline(
+        "fill-mask",
+        model="distilbert-base-cased",
+        tokenizer="distilbert-base-cased"
+    )
+
+def mask_and_unmask(dog_breed, n=4):
+    def apply_mask_unmask(text):
+        # Apply n masks to the text
+        for _ in range(n):
+            words = text.split()
+            mask_positions = [i for i, word in enumerate(words) if word.isalpha()]
+            if not mask_positions:
+                break
+            mask_pos = random.choice(mask_positions)
+            words[mask_pos] = fill_mask.tokenizer.mask_token
+            text = " ".join(words)
+            
+            # Unmask
+            predictions = fill_mask(text)
+            text = predictions[0]['sequence']
+        return text
+
+    # Load the data from the input JSON file
+    with open(f'{dog_breed}.json', 'r') as f:
+        data = json.load(f)
+
+    # Apply the mask and unmask operation to each "text" field
+    for item in data:
+        item_dog_breed, text = item['text'].split(':', 1)
+        # Check if the dog breed matches the target breed
+        if item_dog_breed.strip().lower() == dog_breed.lower():
+            text = apply_mask_unmask(text.strip())
+            item['text'] = f"{item_dog_breed}: {text}"
+
+    # Write the augmented data to a new output JSON file
+    with open(f'{dog_breed}_unmasked.json', 'w') as f:
+        json.dump(data, f, indent=4)
+
 failed_breeds = []  # List to keep track of breeds that caused errors
 
 for breed in dog_breed: #for loop so that it runs the code for each dog breed
@@ -234,6 +275,11 @@ for breed in dog_breed: #for loop so that it runs the code for each dog breed
         merge_files([f'{breed}2.txt', f'{breed}1.txt'], f'{breed}.txt')
         remove_lines(f'{breed}.txt', [3,4,5,6])
         process_file(breed)
+        if USE_MASKING:
+            start_time = time.time()
+            mask_and_unmask(breed)
+            end_time = time.time()
+            print(f"Time taken for mask_and_unmask: {end_time - start_time} seconds")
     except Exception as e:
         print(f"An error occurred with breed {breed}: {str(e)}") 
         failed_breeds.append(breed)  # Add the failed breed to the list
@@ -265,9 +311,9 @@ if MERGE_EVERY_JSON_IN_FOLDER:
 #Subprocess allows user to log in using python without actually using the terminal
 if UPLOAD_TO_HF:
     import subprocess
-    import config
 
-    token = config.hf
+    token = "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"
+
         # Login command using f-strings for secure variable insertion
     login_command = f"huggingface-cli login --token {token}"
 
