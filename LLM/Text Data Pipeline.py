@@ -12,6 +12,12 @@ dog_breed = ['Akita', 'Alaskan-Malamute', 'American-Foxhound', 'Cane-Corso', 'Da
 dogtime_W = {} #For the dogtime website. Most the time the variable matches the other site, so just leave it set to dog_breed. When messed up you have to do the breed individually.
 dailypaws_W = {} #For the dailypaws site. Continuing from above Sometimes these two sites mess up the breed name on the url, so you need to insert the name differently.
             #In the dailypaws website, poodle was the only one saved in a different directory. need to copy the whole link directly
+final_json_name = 'DD3'
+USE_MASKING = True #Data Augmentation by masking then unmasking with the BERT Transformers. Adds about 30 seconds per class
+USE_TRANSLATION = False #Data Augmentation by translating then back translating. Recomended only on a GPU. Adds about 8 minutes per class on CPU. On a T4 GPU its about 3 minutes
+                        #I ont use for initial data upload, but for new labels added (since initial already has wikipedia). WIll be doe on COlabs with T4
+MERGE_EVERY_JSON_IN_FOLDER = True #used for single breed data downloads. Especially when the website has a messed up URL dog breed name.
+UPLOAD_TO_HF = True #Upload to huggingface
 
 
 def dogtime_data(dog_breed):
@@ -28,6 +34,7 @@ def dogtime_data(dog_breed):
     if response.status_code != 200:
         print(f'Failed to retrieve {url}. Please check the full name of the specific dog breed on the site. Status code: {response.status_code}')
         return
+   
     time.sleep(5) #Slows down the script so that it doesn't make too many requests to the site at once. The number represents how many seconds to wait PER class
                       #No need to slow down if using translation
     # Parse the HTML content with BeautifulSoup.
@@ -208,6 +215,7 @@ def process_file(dog_breed):
     add_brackets(filename)
     convert_txt_to_json(filename, json_path)
 
+
 failed_breeds = []  # List to keep track of breeds that caused errors
 
 for breed in dog_breed: #for loop so that it runs the code for each dog breed
@@ -229,3 +237,48 @@ for breed in dog_breed: #for loop so that it runs the code for each dog breed
     except Exception as e:
         print(f"An error occurred with breed {breed}: {str(e)}") 
         failed_breeds.append(breed)  # Add the failed breed to the list
+# Print the breeds that caused errors, so we know which ones to do manually. easy fix, just get the exact name from the website.
+#I organized the data to match both websites. as of now the only problem breed is poodle
+
+#The below function is to merge all of the JSON files into one. I use it so that it only makes one request to Huggingface instead of 70+
+#That's why its after the for loop
+def merge_json_files(folder_path, output_file):
+  data = []
+  for filename in os.listdir(folder_path):
+    if filename.endswith(".json"):
+      file_path = os.path.join(folder_path, filename)
+      with open(file_path, 'r') as f:
+        data.append(json.load(f))
+
+  merged_data = sum(data, [])  # Combine all JSON data into a single list
+  cleaned_data = [merged_data[0]] + merged_data[1:-1] + [merged_data[-1]]  # Remove extra brackets
+
+  with open(output_file, 'w') as f:
+    json.dump(cleaned_data, f, indent=2)  # Save merged JSON with indentation
+
+if MERGE_EVERY_JSON_IN_FOLDER:
+    merge_json_files('.', f'{final_json_name}.json')
+
+
+##upload to huggingface 2
+#Below in triple quotations, you need to log in. If you are already logged in, skip this step
+#Subprocess allows user to log in using python without actually using the terminal
+if UPLOAD_TO_HF:
+    import subprocess
+    import config
+
+    token = config.hf
+        # Login command using f-strings for secure variable insertion
+    login_command = f"huggingface-cli login --token {token}"
+
+        # Call the subprocess module to execute the login command
+    subprocess.run(login_command.split())
+
+    from huggingface_hub import HfApi
+    api = HfApi()
+    api.upload_file( #can also do a whole folder
+        path_or_fileobj=f"{final_json_name}.json",
+        path_in_repo=f"{final_json_name}.json",
+        repo_id="chrismontes/DogData",
+        repo_type="dataset",
+    )
