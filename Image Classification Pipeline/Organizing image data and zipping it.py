@@ -19,8 +19,9 @@ logging.basicConfig(filename='Image Changes.txt', level=logging.INFO, format='%(
 # List of dog breeds
 dog_breeds = ['Akita', 'Alaskan-Malamute', 'American-Foxhound', 'Cane-Corso', 'Dachshund', 'German-Shorthaired-Pointer', 'Miniature-Schnauzer', 'Stafforshire-Bull-Terrier' ]  # Add all dog breeds to this list
 
-# Define the path to the large folder
-large_folder = 'DD'
+# Define the path to the main folder and zip folder
+main_folder = 'DD'
+zip_folder = 'DD3'
 
 # Log the dog breeds and the current time
 logging.info('***********************Zip File Change***********************')
@@ -58,9 +59,9 @@ try:
         new_label_name = os.path.basename(dog_breed)
 
         # Create new label folders inside test, train, and valid folders
-        os.makedirs(os.path.join(large_folder, 'test', new_label_name), exist_ok=True)
-        os.makedirs(os.path.join(large_folder, 'valid', new_label_name), exist_ok=True)
-        os.makedirs(os.path.join(large_folder, 'train', new_label_name), exist_ok=True)
+        os.makedirs(os.path.join(main_folder, 'test', new_label_name), exist_ok=True)
+        os.makedirs(os.path.join(main_folder, 'valid', new_label_name), exist_ok=True)
+        os.makedirs(os.path.join(main_folder, 'train', new_label_name), exist_ok=True)
 
         # Function to move files
         def move_files(files, dst_folder):
@@ -68,19 +69,22 @@ try:
                 shutil.move(os.path.join(dog_breed, file), os.path.join(dst_folder, file))
 
         # Move the files to the appropriate folders
-        move_files(test_files, os.path.join(large_folder, 'test', new_label_name))
-        move_files(valid_files, os.path.join(large_folder, 'valid', new_label_name))
-        move_files(train_files, os.path.join(large_folder, 'train', new_label_name))
+        move_files(test_files, os.path.join(main_folder, 'test', new_label_name))
+        move_files(valid_files, os.path.join(main_folder, 'valid', new_label_name))
+        move_files(train_files, os.path.join(main_folder, 'train', new_label_name))
 #Useful for logging an error occurred and test train split folders were not able to be created
 except Exception as e:
     logging.error('Error occurred: {}'.format(e))
     raise
 
-#Makes a zip copy from the above data saved to large_folder variable
+#Makes a zip copy from the above data saved to main_folder variable
 def zip_folder(folder_path, zip_name):
-    shutil.make_archive(zip_name, 'zip', folder_path)
-    # Log the zip file name
-    logging.info('Zip file name: ' + zip_name + '.zip')
-    logging.info('\n')
+    zip_file_path = zip_name + '.zip'
+    if os.path.exists(zip_file_path):
+        logging.warning(f'Zip file {zip_file_path} already exists. Skipping...')
+    else:
+        shutil.make_archive(zip_name, 'zip', folder_path)
+        logging.info('Zip file name: ' + zip_name + '.zip')
+        logging.info('\n')
 # Usage
-zip_folder(large_folder, 'DD3')
+zip_folder(main_folder, 'zip_folder')
