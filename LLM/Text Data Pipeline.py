@@ -1,5 +1,7 @@
-"""Here is the code for  downloading, cleaning, formatting/transforming to JSON, and uploading the data. Options to use Mask/Unmask (DistillBERT)
-and back translation for data augmentation."""
+#ULTIMATE
+
+"""Here is the code for  downloading, cleaning, formatting/transforming to JSON, and uploading the data. Options to use Mask/Unmask (DistillBERT) 
+for data augmentation."""
 import requests
 from bs4 import BeautifulSoup
 import json
@@ -7,227 +9,79 @@ import os
 import time
 from transformers import pipeline
 import random
+import shutil
 
 #Insert your list here in the dog_breed variable
-dog_breed = ['Akita', 'Alaskan-Malamute', 'American-Foxhound', 'Cane-Corso', 'Dachshund', 'German-Shorthaired-Pointer', 'Miniature-Schnauzer', 'Staffordshire-Bull-Terrier' ]
-dogtime_W = {} #For the dogtime website. Most the time the variable matches the other site, so just leave it set to dog_breed. When messed up you have to do the breed individually.
-dailypaws_W = {} #For the dailypaws site. Continuing from above Sometimes these two sites mess up the breed name on the url, so you need to insert the name differently.
-            #In the dailypaws website, poodle was the only one saved in a different directory. need to copy the whole link directly
-final_json_name = 'DD3'
-USE_MASKING = True #Data Augmentation by masking then unmasking with the BERT Transformers. Adds about 30 seconds per class
-USE_TRANSLATION = False #Data Augmentation by translating then back translating. Recomended only on a GPU. Adds about 8 minutes per class on CPU. On a T4 GPU its about 3 minutes
-                        #I ont use for initial data upload, but for new labels added (since initial already has wikipedia). WIll be doe on COlabs with T4
-MERGE_EVERY_JSON_IN_FOLDER = True #used for single breed data downloads. Especially when the website has a messed up URL dog breed name.
+dog_breed = ['Rottweiler', 'Saint-Bernard', 'Shiba-Inu']
+
+"""Most websites have the dog breed standardized. These dictionaries are here (one for each site) for when some dog breeds are not standardized.
+In that case you would have to figure out where the URL error is and fix it in the dictionary in the format below by comparing the variable in the list to the actual URL.
+Luckily the script logs all the URL errors that occur so you can let the script run once then check out the URL log"""
+dogtime_W = {}
+dailypaws_W = {}
+caninejournal_W = {}
+pets4homes_W = {"Shiba-Inu":"Japanese-Shiba-Inu"}
+
+final_json_name = 'Name_JSON_TO_UPLOAD' #The name of the Final Json file that you want.
+
+#List of websites. You can turn them on or off here by setting to True or False.
+DOGTIME = False
+DAILYPAWS = False
+CANINEJOURNAL = True
+PETS4HOMES = True
+
+USE_MASKING = True #Data Augmentation by masking then unmasking with the BERT Transformers. Adds about 30 seconds per class. For further augmentation use the backtranslator in this repository.
 UPLOAD_TO_HF = True #Upload to huggingface
 
-
-def dogtime_data(dog_breed):
-    # Use the name from dogtime_W if it exists, otherwise use the name from dog_breed
-    dogtime_name = dogtime_W.get(dog_breed, dog_breed)
-
-    # This code is specific for this site, as it cleans the data and scrapes all at once.
-    url = f'https://dogtime.com/dog-breeds/{dogtime_name}'
-
-    # Send a GET request to the URL
+#Parse the html and output a text file
+def fetch_and_parse(url, dog_breed, wnum):
     response = requests.get(url)
-
-    # Check that the request was successful
+     
     if response.status_code != 200:
-        print(f'Failed to retrieve {url}. Please check the full name of the specific dog breed on the site. Status code: {response.status_code}')
-        return
-    if not USE_MASKING:
-        time.sleep(5) #Slows down the script so that it doesn't make too many requests to the site at once. The number represents how many seconds to wait PER class
-                      #No need to slow down if using translation
-    # Parse the HTML content with BeautifulSoup.
-    soup = BeautifulSoup(response.text, 'html.parser')
-
-    # Find all <p> tags and extract the text
-    texts = [p.get_text() for p in soup.find_all('p')]
-
-    # Filter out lines that are less than 50 characters long. There are a lot of headers that this will remove.
-    texts = [text for text in texts if len(text) >= 55]
-
-    # Join the texts together with newline characters. Removes spaces to prepare for json
-    text = '\n'.join(texts)
-
-    # Save the text to a file, utf-8
-    with open(f'{dog_breed}1.txt', 'w', encoding='utf-8') as f:
-        f.write(text)
-
-    # Find the length of the shortest line in the filtered data. Only enabled during testing
-    """shortest_line_length = min(len(text) for text in texts)
-
-    print(f"The shortest line in the filtered data has {shortest_line_length} characters.")"""
-
-#The function removes blocks of text. To do so, in the For loop you will type the begining and the end of the block of text you want to remove
-#in this site there was a lot of generic text that applied to all dogs and not just the specific breed.
-def remove_multiple_blocks(filename, blocks):
-    # Open the file in read mode and read its content
-    with open(filename, 'r', encoding='utf-8') as f:
-        content = f.read()
-
-    for block in blocks:
-        start_text, end_text = block
-
-        # Find the start and end indices of the block of text to remove
-        start_index = content.find(start_text)
-        end_index = content.find(end_text)
-
-        # If both strings are found in the file
-        if start_index != -1 and end_index != -1:
-            # Remove the block of text between the two strings
-            content = content[:start_index] + content[end_index + len(end_text):]
-
-    # Open the file in write mode and write the updated content
-    with open(filename, 'w', encoding='utf-8') as f:
-        f.write(content)
-
-#The last function would remove a bunch of generic text, but leave the very last line with the dog breed.
-#this removes the last line of the text files
-def remove_last_line(filename):
-    with open(filename, 'r+', encoding='utf-8') as f:
-        lines = f.readlines()
-        f.seek(0)
-        for line in lines[:-1]:
-            f.write(line)
-        f.truncate()
-
-#Since each site has different text data in the <p> values, different cleaning methods are required for each site
-def dailypaws_data(dog_breed):
-    # Use the name from dogtime_W if it exists, otherwise use the name from dog_breed
-    dailypaws_name = dailypaws_W.get(dog_breed, dog_breed)
-
-    # This code is specific for this site, as it cleans the data and scrapes all at once.
-    url = f'https://www.dailypaws.com/dogs-puppies/dog-breeds/{dailypaws_name}'
+        print(f'Failed to retrieve {url}. Status code: {response.status_code}')
+        with open('failed_urls.txt', 'a') as f: 
+            f.write(f'{url}\n')  # Write the failed URL and a newline character
+        return []  # Return an empty list so the script continues
     
-    # Send a GET request to the URL
-    response = requests.get(url)
-
-    # Check that the request was successful
-    #No need to slow down time agian, doing it once does it for all the sites
-    if response.status_code == 200:
-        # Save the page content to a local file
-        with open(f'{dog_breed}2.html', 'w', encoding='utf-8') as f:
-            f.write(response.text)
-    else:
-        print(f'Failed to retrieve {url}. Please check the full name of the specific dog breed on the site.  Status code: {response.status_code}')
-        return
-
-    with open(f'{dog_breed}2.html', 'r', encoding='utf-8') as f:
-        soup = BeautifulSoup(f, 'html.parser')
-
-    # Find all <p> tags and extract the text
-    texts = [p.get_text() for p in soup.find_all('p')]
-
-    # Join the texts together with newline characters
-    text = '\n'.join(texts)
-
-    # Save the text to a file
-    with open(f'{dog_breed}2.txt', 'w', encoding='utf-8') as f:
-        f.write(text)
+    if not USE_MASKING:
+        time.sleep(5) # Slows down the script so that it doesn't make too many requests to the site at once. Not necessary with Masking because it already slows the script.
+    
+    soup = BeautifulSoup(response.text, 'html.parser') # Parse the HTML content with BeautifulSoup.
+    texts = [p.get_text() for p in soup.find_all('p')]   # Find all <p> tags and extract the text
+    
+    with open(f'{dog_breed}{wnum}.txt', 'w', encoding = 'utf-8') as f: # Write the texts to a file
+        f.write('\n'.join(texts))
+    return texts if texts else []
 
 
-#The following function combines all the text files from each website per class
-def merge_files(filenames, output_filename):
-    with open(output_filename, 'w', encoding='utf-8') as outfile:
-        for fname in filenames:
-            with open(fname, encoding='utf-8') as infile:
-                outfile.writelines(infile.readlines())
+#Common formatting needed by each of the website text to turn into JSON
+def format_and_write_to_json(dog_breed, texts, wnum):
+    if not texts:
+        return  # Exit the function if there are no texts to process
+    try:
+        texts = [line for line in texts if len(line) > 55] # Filter out lines that are less than 50 characters
+        texts = [{"text": f"{dog_breed}: {line}", "label": f"Please tell me something interesting about the {dog_breed} Dog"} for line in texts] # Add the required strings to each line
+        json_text = json.dumps(texts, ensure_ascii=False, indent=4) # Serialize the texts list to a JSON string
+        
+        with open(f'{dog_breed}{wnum}.json', 'w', encoding='utf-8') as f:  # Write the JSON string to the file
+            f.write(json_text)
 
-#There were still short author bios leftover after merging. The function below removes them
-def remove_lines(filename, lines_to_remove):
-    with open(filename, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
+    except (ValueError, TypeError) as e:
+        with open('failed_json.txt', 'a') as f:
+            f.write(f'Failed to format JSON for {dog_breed}{wnum}.json due to: {str(e)}\n')
+    except:
+        pass
 
-    with open(filename, 'w', encoding='utf-8') as f:
-        for i, line in enumerate(lines):
-            if i+1 not in lines_to_remove:
-                f.write(line)
-
-
-###Formatting the data into JSON
-def process_file(dog_breed):
-    #removes any blank lines
-    def remove_blank_lines(filename):
-        with open(filename, 'r', encoding='utf-8') as file:
-            lines = file.readlines()
-
-        lines = [line for line in lines if line.strip()]
-
-        with open(filename, 'w', encoding='utf-8') as file:
-            file.writelines(lines)
-    #adds a backslash before any double quotation marks
-    #IMPORTANT TO DO BEFORE ADDING THE JSON FORMATTING
-    def replace_quotes(filename):
-        with open(filename, 'r', encoding='utf-8') as file:
-            contents = file.read()
-
-        contents = contents.replace('"', '\\"')
-
-        with open(filename, 'w', encoding='utf-8') as file:
-            file.write(contents)
-    #Adds the JSON style formatting to the begining of the line
-    def format_beg_of_line(filename, text):
-        with open(filename, 'r', encoding='utf-8') as file:
-            lines = file.readlines()
-
-        lines = [text + line for line in lines]
-
-        with open(filename, 'w', encoding='utf-8') as file:
-            file.writelines(lines)
-    #Used to add the JSON format to the end of lines, including the label
-    def format_end_of_line(filename, text):
-        with open(filename, 'r', encoding='utf-8') as file:
-            lines = file.readlines()
-
-        lines = [line.rstrip('\n') + text + '\n' for line in lines]
-
-        with open(filename, 'w', encoding='utf-8') as file:
-            file.writelines(lines)
-    #Adds an open and close bracket to the begining and end of the whole json file
-    def add_brackets(filename):
-        with open(filename, 'r', encoding='utf-8') as file:
-            lines = file.readlines()
-
-        lines[0] = '[' + lines[0]
-        lines[-1] = lines[-1].rstrip(',\n') + ']\n'
-
-        with open(filename, 'w', encoding='utf-8') as file:
-            file.writelines(lines)
-    #finally converts it to json format
-    def convert_txt_to_json(txt_path, json_path):
-        with open(txt_path, 'r', encoding='utf-8') as txt_file:
-            content = txt_file.read()
-
-        data = json.loads(content)
-
-        with open(json_path, 'w', encoding='utf-8') as json_file:
-            json.dump(data, json_file, indent=4)
-
-    filename = f'{dog_breed}.txt'
-    json_path = f'{dog_breed}.json'
-
-    remove_blank_lines(filename)
-    replace_quotes(filename)
-    format_beg_of_line(filename, f'{dog_breed}: ')
-    format_beg_of_line(filename, '{"text": "')
-    format_end_of_line(filename, f'", "label": "Please tell me something interesting about the {dog_breed} Dog"')
-    format_end_of_line(filename, '},')
-    add_brackets(filename)
-    convert_txt_to_json(filename, json_path)
-
-
-# Initialize the fill-mask pipeline with distilbert
-#This goes outside the def function because we don't want it within the loop. Only need to call it once, not once per breed
-#calling it multiple times is highly inefficient
+# Initialize the fill-mask pipeline with distilbert. This goes outside the mask_and_unmask function since we only need to call this once
 if USE_MASKING:
     fill_mask = pipeline(
         "fill-mask",
-        model="distilbert-base-cased",
-        tokenizer="distilbert-base-cased"
+        model="distilbert-base-cased",  #The model and tokenizer for masking/unmasking.
+        tokenizer="distilbert-base-cased" #Make sure to use "cased" and not "uncased" or else everything will be lower cased.
     )
 
-def mask_and_unmask(dog_breed, n=4):
+
+def mask_and_unmask(dog_breed, wnum, n=4):
     def apply_mask_unmask(text):
         # Apply n masks to the text
         for _ in range(n):
@@ -244,112 +98,185 @@ def mask_and_unmask(dog_breed, n=4):
             text = predictions[0]['sequence']
         return text
 
-    # Load the data from the input JSON file
-    with open(f'{dog_breed}.json', 'r') as f:
-        data = json.load(f)
-
-    # Apply the mask and unmask operation to each "text" field
-    for item in data:
-        item_dog_breed, text = item['text'].split(':', 1)
-        # Check if the dog breed matches the target breed
-        if item_dog_breed.strip().lower() == dog_breed.lower():
-            text = apply_mask_unmask(text.strip())
-            item['text'] = f"{item_dog_breed}: {text}"
-
-    # Write the augmented data to a new output JSON file
-    with open(f'{dog_breed}_unmasked.json', 'w') as f:
-        json.dump(data, f, indent=4)
-
-
-if USE_TRANSLATION:
-    import torch
-    from transformers import T5ForConditionalGeneration, T5Tokenizer
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # Load pre-trained T5 model and tokenizer
-    translate_model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-small").to(device)
-    translate_tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-small")
-
-def translate_and_backtranslate(breed):
-    # Load the JSON file
-    with open(f'{breed}.json') as f:
-        data = json.load(f)
-
-    # Translate and back-translate the text
-    for item in data:
-        if item['text'].startswith(breed + ':'):
-            text_to_translate = item['text'][len(breed) + 1:]
-            input_ids = translate_tokenizer.encode(text_to_translate, return_tensors='pt').to(device)  # Move to GPU
-            outputs = translate_model.generate(input_ids=input_ids, max_length=250, min_length=50, no_repeat_ngram_size=3, num_beams=8, early_stopping= True)
-            translated_text = translate_tokenizer.decode(outputs[0], skip_special_tokens=True)
-
-            input_ids = translate_tokenizer.encode(translated_text, return_tensors='pt').to(device)  # Move to GPU
-            outputs = translate_model.generate(input_ids=input_ids, max_length=250, min_length=50, no_repeat_ngram_size=3, num_beams=8, early_stopping= True)
-            back_translated_text = translate_tokenizer.decode(outputs[0], skip_special_tokens=True)
-            item['text'] = breed + ': ' + back_translated_text
-
-    # Write the translated data to a new JSON file
-    with open(f'{breed}_backtranslated_data.json', 'w') as f:
-        json.dump(data, f, indent=4)
-
-
-
-failed_breeds = []  # List to keep track of breeds that caused errors
-
-for breed in dog_breed: #for loop so that it runs the code for each dog breed
-    #try and except so that it skips over any dog breed that doesnt fit in either of the websites.
     try:
-        # Call your functions with the current breed
-        dogtime_data(breed)
-        remove_multiple_blocks(f'{breed}1.txt', [
-            (' Advertisement', 'wonderful companions for many years to come.'), 
-            ('Looking for the best dog for your apartment?', 'especially when introducing new toys or activities.'),
-            ('are often purchased without any clear understanding','and behavioral issues.'),
-            ('Finding a reputable dog breeder', 'and behavioral issues.')
-        ])
-        remove_last_line(f'{breed}1.txt')
-        dailypaws_data(breed)
-        merge_files([f'{breed}2.txt', f'{breed}1.txt'], f'{breed}.txt')
-        remove_lines(f'{breed}.txt', [3,4,5,6])
-        process_file(breed)
-        if USE_MASKING:
-            start_time = time.time()
-            mask_and_unmask(breed)
-            end_time = time.time()
-            print(f"Time taken for mask_and_unmask: {end_time - start_time} seconds")
-        if USE_TRANSLATION:
-            start_time = time.time()
-            translate_and_backtranslate(breed)
-            end_time = time.time()
-            print(f"Time taken for translate_and_backtranslate: {end_time - start_time} seconds")
+        # Load the data from the input JSON file
+        with open(f'{dog_breed}{wnum}.json', 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        # Apply the mask and unmask operation to each "text" field
+        for item in data:
+            item_dog_breed, text = item['text'].split(':', 1)
+            # Check if the dog breed matches the target breed
+            if item_dog_breed.strip().lower() == dog_breed.lower():
+                text = apply_mask_unmask(text.strip())
+                item['text'] = f"{item_dog_breed}: {text}"
+
+        # Write the augmented data to a new output JSON file
+        with open(f'{dog_breed}_unmasked{wnum}.json', 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4)
+
+        return True
     except Exception as e:
-        print(f"An error occurred with breed {breed}: {str(e)}") 
-        failed_breeds.append(breed)  # Add the failed breed to the list
-# Print the breeds that caused errors, so we know which ones to do manually. easy fix, just get the exact name from the website.
-#I organized the data to match both websites. as of now the only problem breed is poodle
+        print(f"An error occurred: {e}")
+        return False
 
-#The below function is to merge all of the JSON files into one. I use it so that it only makes one request to Huggingface instead of 70+
-#That's why its after the for loop
+##################################################################################
+"""Here is the section for the different websites. You will notice that the website functions have similar structures.
+Some minor code adjustments is usually enough when adding a new website to go from HTML to JSON training data"""
+
+def dogtime_data(dog_breed):
+    wnum = 1 #This helps name the files that get outputed, such as file1.txt, file1.json
+    dogtime_name = dogtime_W.get(dog_breed, dog_breed).lower() #Retrieves the unique breed name from the site if it isn't like the list. Some sites require all lower cased so this handles with ".lower"
+    url = f'https://dogtime.com/dog-breeds/{dogtime_name}' #URL name and variable
+    texts = fetch_and_parse(url, dog_breed, wnum)
+    
+    # Remove unwanted lines
+    start_remove = 'Looking for the best dog for your apartment?'
+    end_remove = 'Playing with our pups is good for us.'
+    
+    start_index = None
+    end_index = None
+    
+    for i, line in enumerate(texts):
+        if line.startswith(start_remove):
+            start_index = i
+        elif line.startswith(end_remove):
+            end_index = i
+            break
+    
+    if start_index is not None and end_index is not None:
+        texts = texts[:start_index] + texts[end_index+1:]
+    if texts:
+        texts = texts[:-2]
+
+    format_and_write_to_json(dog_breed, texts, wnum)
+    if USE_MASKING:
+        mask_and_unmask(dog_breed, wnum, n=4)
+
+def dailypaws_data(dog_breed):
+    wnum = 2
+    dailypaws_name = dailypaws_W.get(dog_breed, dog_breed).lower()
+    url = f'https://www.dailypaws.com/dogs-puppies/dog-breeds/{dailypaws_name}'
+    texts = fetch_and_parse(url, dog_breed, wnum)
+    texts = [line.lstrip() for line in texts]
+    # Omit the second, third, and fourth lines from the texts
+    del texts[1:4]
+    format_and_write_to_json(dog_breed, texts, wnum)
+    if USE_MASKING:
+        mask_and_unmask(dog_breed, wnum, n=4)
+
+def caninejournal_data(dog_breed):
+    wnum = 3 
+    caninejournal_name = caninejournal_W.get(dog_breed, dog_breed).lower()
+    url = f"https://www.caninejournal.com/{caninejournal_name}"
+    texts = fetch_and_parse(url, dog_breed, wnum)
+    # Remove the first and last 5 lines
+    texts = texts[5:-5]
+    # Call the new function to process the text and write it to a JSON file
+    format_and_write_to_json(dog_breed, texts, wnum)
+    if USE_MASKING:
+        mask_and_unmask(dog_breed, wnum, n=4)
+
+def pets4homes_data(dog_breed):
+    wnum = 4 
+    pets4homes_name = pets4homes_W.get(dog_breed, dog_breed).lower()
+    url = f"https://www.pets4homes.co.uk/dog-breeds/{pets4homes_name}"
+    texts = fetch_and_parse(url, dog_breed, wnum)
+    # Remove the first and last 5 lines
+    texts = texts[5:-5]
+    # Call the new function to process the text and write it to a JSON file
+    format_and_write_to_json(dog_breed, texts, wnum)
+    if USE_MASKING:
+        mask_and_unmask(dog_breed, wnum, n=4)
+
+##################################################################################
+#Moves all of the text files into a subfolder to clean up the work folder
+def move_text_files(folder_name):
+    # Create the folder if it doesn't exist
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+
+    # Get a list of all text files in the current directory
+    text_files = [f for f in os.listdir() if f.endswith('.txt')]
+
+    # Exclude specific files from being moved
+    excluded_files = ['failed_urls.txt', 'failed_json.txt']
+    text_files = [f for f in text_files if f not in excluded_files]
+
+    # Move each text file into the folder
+    for file in text_files:
+        destination_file = os.path.join(folder_name, file)
+        if os.path.exists(destination_file):
+            os.remove(destination_file)  # Remove the file if it already exists
+        shutil.move(file, folder_name)
+
+#merge all of the json files into one to organize the data better. Also moves all but the merged JSON to a subfolder
 def merge_json_files(folder_path, output_file):
-  data = []
-  for filename in os.listdir(folder_path):
-    if filename.endswith(".json"):
-      file_path = os.path.join(folder_path, filename)
-      with open(file_path, 'r') as f:
-        data.append(json.load(f))
+    data = []
+    for filename in os.listdir(folder_path):
+        if filename.endswith(".json"):
+            file_path = os.path.join(folder_path, filename)
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data.append(json.load(f))
 
-  merged_data = sum(data, [])  # Combine all JSON data into a single list
-  cleaned_data = [merged_data[0]] + merged_data[1:-1] + [merged_data[-1]]  # Remove extra brackets
+    merged_data = sum(data, [])  
+    cleaned_data = [merged_data[0]] + merged_data[1:-1] + [merged_data[-1]]  
 
-  with open(output_file, 'w') as f:
-    json.dump(cleaned_data, f, indent=2)  # Save merged JSON with indentation
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(cleaned_data, f, indent=2)  
 
-if MERGE_EVERY_JSON_IN_FOLDER:
-    merge_json_files('.', f'{final_json_name}.json')
+    subfolder_name = "Used JSON Files"
+    subfolder_path = os.path.join(folder_path, subfolder_name)
 
+    if not os.path.exists(subfolder_path):
+        os.makedirs(subfolder_path)
 
-##upload to huggingface 2
-#Below in triple quotations, you need to log in. If you are already logged in, skip this step
-#Subprocess allows user to log in using python without actually using the terminal
+    for filename in os.listdir(folder_path):
+        if filename.endswith(".json") and filename != output_file:
+            file_path = os.path.join(folder_path, filename)
+            new_file_path = os.path.join(subfolder_path, filename)
+            os.replace(file_path, new_file_path)
+
+#Function to move the final json file into a folder
+def move_completed_json(file_path, folder_name):
+    # Create the folder if it doesn't exist
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+
+    # Get the filename and folder path
+    filename = os.path.basename(file_path)
+    folder_path = os.path.join(os.getcwd(), folder_name)
+
+    # Check if the file already exists in the folder
+    if os.path.exists(os.path.join(folder_path, filename)):
+        # Rename the file by adding a number in parentheses
+        base, extension = filename.split('.')
+        new_filename = f"{base} (1).{extension}"
+        i = 1
+        while os.path.exists(os.path.join(folder_path, new_filename)):
+            i += 1
+            new_filename = f"{base} ({i}).{extension}"
+        filename = new_filename
+
+    # Move the file to the folder
+    shutil.move(file_path, os.path.join(folder_path, filename))
+
+#Now call the website functions in a loop for the list
+for breed in dog_breed:
+    if DOGTIME:
+        dogtime_data(breed)
+    if DAILYPAWS:
+        dailypaws_data(breed)
+    if CANINEJOURNAL:
+        caninejournal_data(breed)
+    if PETS4HOMES:
+        pets4homes_data(breed)
+    move_text_files('Used Text Files')
+
+merge_json_files('.', f'{final_json_name}.json')
+if not UPLOAD_TO_HF:
+    move_completed_json(f'{final_json_name}.json', 'Completed Json Runs')
+
 if UPLOAD_TO_HF:
     import subprocess
     import config
@@ -364,9 +291,10 @@ if UPLOAD_TO_HF:
 
     from huggingface_hub import HfApi
     api = HfApi()
-    api.upload_file( #can also do a whole folder
+    api.upload_file( #can also do a whole folder upload
         path_or_fileobj= f"{final_json_name}.json",
         path_in_repo= f"{final_json_name}.json",
-        repo_id= "repo_id", #insert the dataset you want to upload in HuggingFace
+        repo_id= "YOUR_HF_DATAPATH", #insert the dataset you want to upload in HuggingFace
         repo_type= "dataset",
     )
+    move_completed_json(f'{final_json_name}.json', 'Completed Json Runs')
