@@ -1,11 +1,11 @@
-"""From huggingface, udownloads dataset, organizes them by number of data inputs, 
-counts the number of data per each class, and tells what percentage that class makes up of the whole dataset"""
+"""From Hugging Face, downloads dataset, organizes them by number of data inputs, 
+counts the number of data per each class, and tells what percentage that class makes up of the whole dataset."""
 
 from datasets import load_dataset
 from collections import Counter
 import numpy as np
 
-# Load a dataset from Hugging Face (replace 'imdb' with your dataset)
+# Load a dataset from Hugging Face (HF_username/dataset_name)
 dataset = load_dataset('chrismontes/DogData')
 
 # Assuming the 'label' field contains the class information

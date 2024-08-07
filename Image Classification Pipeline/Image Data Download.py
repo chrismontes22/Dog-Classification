@@ -1,7 +1,8 @@
-"""The script requires you to create your own google account, then go https://developers.google.com/custom-search/v1/overview to create your own custom image search.
-once the image search is ccreated you will receive a cse_id and you will be able to create an API key. If you want to hide the ID and key you will also require
-a seperate config file, such as in the script below"""
+"""The script requires you to create your own Google account, then go to https://developers.google.com/custom-search/v1/overview to create your own custom image search.
+Once the image search is created, you will receive a cse_id and you will be able to create an API key. If you want to hide the ID and key, you will also require
+a separate config file, such as in the script below."""
 #Once youve gotten a cse_id and an API key and the config file, just fill the  parameters. It will create a new folder with the wuery as the name
+
 
 import os
 import requests
@@ -16,9 +17,9 @@ logging.basicConfig(filename='Image Changes.txt', level=logging.INFO, format='%(
 
 #Parameters
 search_query = 'puppy' #Google Search query
-first_image = 1 #Google search api requres you set a range of images. The max difference between the two is 100 images
+first_image = 1 #Google search api requres you set a range of images. The max difference between the two allowed is 100 images
 last_image = 100 #Google allows max of 100 per run, It will fininsh the last page (set of 10 images)
-                  #Start where you left off last run. The code loggeed this number in a text file in the main workfolder
+                  #Start where you left off last run. The code logs this number in a text file in the main workfolder
                   
 
 folder_path = search_query.replace(' ', '-')
@@ -51,7 +52,7 @@ try:
         return response.json()
 
     def download_image(url, folder_path, image_name, timeout=10):
-        #downloads an image from a URL, checks the response status, opens the image, and saves it to a specified folder with a given name.
+        #Downloads an image from a URL, checks the response status, opens the image, and saves it to a specified folder with a given name.
         try:
             response = requests.get(url, timeout=timeout)
             response.raise_for_status()
@@ -69,7 +70,7 @@ try:
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
 
-#A loop that establishes the range of images to downlaod (form above parameters). 10 is the max number of images per request, and it loops to the next ten each request
+# A loop that establishes the range of images to download (from above parameters). 10 is the max number of images per request, and it loops to the next ten each request.
 #Calculates an index for the current image based on the start index and the current index.
     for start_index in range(first_image, last_image + 1, 10):
         search_results = google_image_search(search_query, api_key, cse_id, start_index, num_images=10)

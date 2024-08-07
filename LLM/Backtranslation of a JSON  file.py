@@ -1,6 +1,5 @@
-"""This code is for translating and back translating for data augmentation. While I have inegrated it into the main text pipeline, I also have it seperate because when I run large number of labels
-this code takes too long. It is device agnostic so a GPU is highly reccomended"""
-
+"""This code is for translating and back-translating for data augmentation. While I have integrated it into the main text pipeline, I also have it separate because when I run a large number of labels,
+this code takes too long. It is device agnostic, so a GPU is highly recommended."""
 #Because of the way my json data is structured, you need to save all the breeds which you want to data augment into a single JSON file, and you will also need to specify the breeds in that JSON file.
 
 import json

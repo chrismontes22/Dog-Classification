@@ -1,7 +1,7 @@
-#ULTIMATE
 
-"""Here is the code for  downloading, cleaning, formatting/transforming to JSON, and uploading the data. Options to use Mask/Unmask (DistillBERT) 
+"""Here is the code for downloading, cleaning, formatting/transforming to JSON, and uploading the data. Options to use Mask/Unmask (DistillBERT) 
 for data augmentation."""
+
 import requests
 from bs4 import BeautifulSoup
 import json
@@ -15,8 +15,9 @@ import shutil
 dog_breed = ['Rottweiler', 'Saint-Bernard', 'Shiba-Inu']
 
 """Most websites have the dog breed standardized. These dictionaries are here (one for each site) for when some dog breeds are not standardized.
-In that case you would have to figure out where the URL error is and fix it in the dictionary in the format below by comparing the variable in the list to the actual URL.
-Luckily the script logs all the URL errors that occur so you can let the script run once then check out the URL log"""
+In that case, you would have to figure out where the URL error is and fix it in the dictionary in the format below by comparing the variable in the list to the actual URL.
+Luckily, the script logs all the URL errors that occur, so you can let the script run once and then check out the URL log."""
+
 dogtime_W = {}
 dailypaws_W = {}
 caninejournal_W = {}
@@ -210,7 +211,7 @@ def move_text_files(folder_name):
             os.remove(destination_file)  # Remove the file if it already exists
         shutil.move(file, folder_name)
 
-#merge all of the json files into one to organize the data better. Also moves all but the merged JSON to a subfolder
+#Merge all of the json files into one to organize the data better. Also moves all but the merged JSON to a subfolder
 def merge_json_files(folder_path, output_file):
     data = []
     for filename in os.listdir(folder_path):

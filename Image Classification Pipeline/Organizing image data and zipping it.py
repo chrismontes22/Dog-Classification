@@ -1,10 +1,9 @@
-"""After you have downloaded the image data for the selected breeds, this script creates the test 
-train val folders in the main image folder. Next it moves the appropriate amount of images to the corresponding folders, then reorganizes them in 000 numerical format.
-Finally it zips the entire image dataset. If the label already exists, it instead moves all of the images to the respective label subfolder in the training folder."""
-"""Please note that the dog_breeds here are filepaths to folders, so if the folders are saved in a different path you must change it in the
-dog_breeds list accordingly"""
-#Just fill in the list of breeds with the breeds that you ran for the Image download pipeline
-#I have my data structured where I have the main folder then a test, a train, and a valid folder. Then each folder has a bunch of folders, one for each class
+"""After you have downloaded the image data for the selected breeds, this script creates the test, 
+train, and val folders in the main image folder. Next, it moves the appropriate number of images to the corresponding folders, then reorganizes them in 000 numerical format.
+Finally, it zips the entire image dataset. If the label already exists, it instead moves all of the images to the respective label subfolder in the training folder."""
+"""Please note that the dog_breeds here are file paths to folders, so if the folders are saved in a different path, you must change it in the
+dog_breeds list accordingly."""
+# Just fill in the list of breeds with the breeds that you ran for the image download pipeline.
 
 """The script assumes the dataset is organized in folders in the following manner:
 

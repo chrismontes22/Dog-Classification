@@ -1,3 +1,5 @@
+#This code is used to gather all of the labels by listing all of the folders in the Train directory
+
 import os
 
 # Replace 'your_main_folder_path' with the actual path to your main folder
