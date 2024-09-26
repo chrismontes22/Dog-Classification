@@ -4,7 +4,8 @@ There are several ways to get the Image and Language models going.
 
 2. You can also run a Docker Image to create a container with the necessary dependencies and inference script. You will need to modify the filepaths below (anything inside a <>) to your dog image, then copy the Bash or powershell script to your terminal.This will also create a csv file with data of the user answers saved to the local drive!
 
-    Bash
+Bash
+```
 cd </absolute/path/to/the/folder/make/sure/to/omit/the/file/name/itself>;
 
 IMAGE_PATH="<filename_of_image_without_folder_path>"; #make sure to include quotes
@@ -15,11 +16,12 @@ docker run --rm -it \
   -v "${PWD}:/dogapp" \
   chrismontes22/dog_project_inference:latest \
   python /dogapp/Inference_Script.py
+```
 
-
-    Powershell
+Powershell
+```
 $IMAGE_PATH="</absolute/path/to/file/including/filename>"; docker run --rm -it -e IMAGE_PATH=$IMAGE_PATH -v "${IMAGE_PATH}:${IMAGE_PATH}" chrismontes22/dog_project_inference:latest python Inference_Script.py  #make sure to include quotes around the full file directory
-
+```
 
 3. You may also access the Image Classification model easily (No Language Model) by simply going to my [Hugging Face Gradio Space.](https://huggingface.co/spaces/chrismontes/Dog_Breed_Identifier)
 
